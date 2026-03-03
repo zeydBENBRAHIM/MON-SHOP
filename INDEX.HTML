@@ -1,0 +1,279 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MonShop - Marketplace</title>
+<style>
+body{
+    margin:0;
+    font-family: Arial, Helvetica, sans-serif;
+    background:#f5f5f5;
+}
+header{
+    background:white;
+    padding:15px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    box-shadow:0 2px 5px rgba(0,0,0,0.1);
+    position:sticky;
+    top:0;
+    z-index:100;
+}
+.logo{
+    font-size:22px;
+    font-weight:bold;
+    color:#0a8f8f;
+}
+input[type="text"]{
+    padding:8px;
+    width:40%;
+    border-radius:20px;
+    border:1px solid #ccc;
+}
+button{
+    padding:8px 12px;
+    border:none;
+    border-radius:20px;
+    cursor:pointer;
+}
+.btn-primary{
+    background:#0a8f8f;
+    color:white;
+}
+.container{
+    padding:20px;
+}
+.products{
+    display:grid;
+    grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+    gap:20px;
+}
+.product{
+    background:white;
+    padding:10px;
+    border-radius:10px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.1);
+    cursor:pointer;
+    transition:0.3s;
+}
+.product:hover{
+    transform:scale(1.03);
+}
+.product img{
+    width:100%;
+    height:250px;
+    object-fit:cover;
+    border-radius:10px;
+}
+.price{
+    color:#0a8f8f;
+    font-weight:bold;
+}
+.page{
+    display:none;
+}
+.active{
+    display:block;
+}
+.cart-item{
+    display:flex;
+    justify-content:space-between;
+    margin-bottom:10px;
+}
+.form-box{
+    max-width:400px;
+    margin:auto;
+    background:white;
+    padding:20px;
+    border-radius:10px;
+}
+.form-box input{
+    width:100%;
+    margin-bottom:10px;
+    padding:8px;
+}
+@media(max-width:600px){
+    input[type="text"]{
+        width:100%;
+        margin-top:10px;
+    }
+    header{
+        flex-direction:column;
+        gap:10px;
+    }
+}
+</style>
+</head>
+<body>
+
+<header>
+    <div class="logo">MonShop</div>
+    <input type="text" id="search" placeholder="Rechercher produit ou vendeur..." onkeyup="filterProducts()">
+    <div>
+        <button onclick="showPage('cartPage')">Panier 🛒 (<span id="cartCount">0</span>)</button>
+        <button onclick="showPage('loginPage')">Connexion</button>
+    </div>
+</header>
+
+<div class="container">
+
+<!-- PAGE ACCUEIL -->
+<div id="homePage" class="page active">
+    <div class="products" id="productList"></div>
+</div>
+
+<!-- PAGE PRODUIT -->
+<div id="productPage" class="page"></div>
+
+<!-- PAGE PANIER -->
+<div id="cartPage" class="page">
+    <h2>Mon Panier</h2>
+    <div id="cartItems"></div>
+    <h3>Total : <span id="totalPrice">0</span> €</h3>
+</div>
+
+<!-- PAGE LOGIN -->
+<div id="loginPage" class="page">
+    <div class="form-box">
+        <h2>Connexion</h2>
+        <input type="text" id="loginEmail" placeholder="Email">
+        <input type="password" id="loginPassword" placeholder="Mot de passe">
+        <button class="btn-primary" onclick="login()">Se connecter</button>
+        <p>Pas de compte ? <a href="#" onclick="showPage('registerPage')">Créer un compte</a></p>
+    </div>
+</div>
+
+<!-- PAGE REGISTER -->
+<div id="registerPage" class="page">
+    <div class="form-box">
+        <h2>Créer un compte</h2>
+        <input type="text" id="registerName" placeholder="Nom">
+        <input type="text" id="registerEmail" placeholder="Email">
+        <input type="password" id="registerPassword" placeholder="Mot de passe">
+        <button class="btn-primary" onclick="register()">Créer</button>
+    </div>
+</div>
+
+</div>
+
+<script>
+// ---------------------- DONNÉES INITIALES ----------------------
+let products = [
+    {id:1, name:"Veste Streetwear", price:45, seller:"Alex", img:"https://images.unsplash.com/photo-1520975916090-3105956dac38?auto=format&fit=crop&w=400&q=80"},
+    {id:2, name:"Sac tendance", price:28, seller:"Sophie", img:"https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=400&q=80"},
+    {id:3, name:"Sneakers blanches", price:60, seller:"Karim", img:"https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=400&q=80"},
+    {id:4, name:"Pull oversize", price:22, seller:"Laura", img:"https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=400&q=80"}
+];
+
+let cart = [];
+let currentUser = null;
+
+// ---------------------- AFFICHAGE PRODUITS ----------------------
+function displayProducts(list){
+    const container = document.getElementById("productList");
+    container.innerHTML="";
+    list.forEach(p=>{
+        container.innerHTML+=`
+        <div class="product" onclick="showProduct(${p.id})">
+            <img src="${p.img}" alt="${p.name}">
+            <h3>${p.name}</h3>
+            <p class="price">${p.price} €</p>
+            <p>Vendeur : ${p.seller}</p>
+        </div>`;
+    });
+}
+
+function filterProducts(){
+    const value = document.getElementById("search").value.toLowerCase();
+    const filtered = products.filter(p =>
+        p.name.toLowerCase().includes(value) ||
+        p.seller.toLowerCase().includes(value)
+    );
+    displayProducts(filtered);
+}
+
+// ---------------------- PAGE PRODUIT ----------------------
+function showProduct(id){
+    const p = products.find(prod => prod.id === id);
+    const page = document.getElementById("productPage");
+    page.innerHTML = `
+        <h2>${p.name}</h2>
+        <img src="${p.img}" style="width:100%;max-width:400px;border-radius:10px;">
+        <p class="price">${p.price} €</p>
+        <p>Vendeur : ${p.seller}</p>
+        <button class="btn-primary" onclick="addToCart(${p.id})">Ajouter au panier</button>
+        <br><br>
+        <button onclick="showPage('homePage')">Retour</button>
+    `;
+    showPage("productPage");
+}
+
+// ---------------------- PANIER ----------------------
+function addToCart(id){
+    const product = products.find(p => p.id === id);
+    cart.push(product);
+    updateCart();
+}
+
+function removeFromCart(index){
+    cart.splice(index,1);
+    updateCart();
+}
+
+function updateCart(){
+    document.getElementById("cartCount").innerText = cart.length;
+    const items = document.getElementById("cartItems");
+    items.innerHTML = "";
+    let total = 0;
+    cart.forEach((item,index)=>{
+        total += item.price;
+        items.innerHTML+=`
+            <div class="cart-item">
+                ${item.name} - ${item.price} €
+                <button onclick="removeFromCart(${index})">X</button>
+            </div>`;
+    });
+    document.getElementById("totalPrice").innerText = total;
+}
+
+// ---------------------- AUTH ----------------------
+function login(){
+    const email = document.getElementById("loginEmail").value;
+    const password = document.getElementById("loginPassword").value;
+    if(email && password){
+        currentUser = {email}; // placeholder pour futur backend
+        alert("Connecté !");
+        showPage("homePage");
+    } else {
+        alert("Veuillez remplir tous les champs !");
+    }
+}
+
+function register(){
+    const name = document.getElementById("registerName").value;
+    const email = document.getElementById("registerEmail").value;
+    const password = document.getElementById("registerPassword").value;
+    if(name && email && password){
+        currentUser = {name,email};
+        alert("Compte créé !");
+        showPage("homePage");
+    } else {
+        alert("Veuillez remplir tous les champs !");
+    }
+}
+
+// ---------------------- NAVIGATION ----------------------
+function showPage(pageId){
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    document.getElementById(pageId).classList.add("active");
+}
+
+// ---------------------- INIT ----------------------
+displayProducts(products);
+updateCart();
+</script>
+
+</body>
+</html>
